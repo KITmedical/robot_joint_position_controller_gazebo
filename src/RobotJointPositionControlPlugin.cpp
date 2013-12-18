@@ -7,7 +7,7 @@
 #include <boost/bind.hpp>
 
 // custom includes
-
+#include <ahbstring.h>
 
 namespace gazebo
 {
@@ -46,7 +46,16 @@ namespace gazebo
     for (size_t jointIdx = 0; jointIdx < joints.size(); jointIdx++) {
       physics::JointPtr currJoint = joints[jointIdx];
       std::cout << jointIdx << " name=" << currJoint->GetName() << " angle=" << currJoint->GetAngle(0) << " v=" << currJoint->GetVelocity(0) << std::endl;
+
       m_joints.push_back(currJoint);
+      std::string jointTopicName = currJoint->GetName();
+      ahb::string::replace(jointTopicName, "::", "_");
+      m_singleJointWriteTopicSub.push_back(m_node->subscribe<sensor_msgs::JointState>(m_robotNamespaceName + "/set_" + jointTopicName, 1, boost::bind(&RobotJointPositionControlPlugin::singleJointsWriteCallback, this, _1, jointIdx)));
+      m_singleJointReadTopicSub.push_back(m_node->advertise<sensor_msgs::JointState>(m_robotNamespaceName + "/get_" + jointTopicName, 1));
+      m_singleJointCurrent.push_back(sensor_msgs::JointState());
+      m_singleJointCurrent[jointIdx].position.resize(1, 0);
+      m_singleJointCurrent[jointIdx].velocity.resize(1, 0);
+      m_singleJointCurrent[jointIdx].effort.resize(1, 0);
     }
 
     m_jointsCurrent.position.resize(m_joints.size(), 0);
@@ -113,6 +122,13 @@ namespace gazebo
   }
 
   void
+  RobotJointPositionControlPlugin::singleJointsWriteCallback(const sensor_msgs::JointState::ConstPtr& jointsMsg, int jointIndex)
+  {
+    //std::cout << "singleJointsWriteCallback: jointIndex=" << jointIndex << " jointsMsg=" << *jointsMsg << std::endl;
+    m_joints[jointIndex]->SetAngle(0, jointsMsg->position[0]);
+  }
+
+  void
   RobotJointPositionControlPlugin::updateRobotState()
   {
     // joints
@@ -120,6 +136,8 @@ namespace gazebo
       physics::JointPtr currJoint = m_joints[jointIdx];
       m_jointsCurrent.position[jointIdx] = currJoint->GetAngle(0).Radian();
       m_jointsCurrent.velocity[jointIdx] = currJoint->GetVelocity(0);
+      m_singleJointCurrent[jointIdx].position[0] = currJoint->GetAngle(0).Radian();
+      m_singleJointCurrent[jointIdx].velocity[0] = currJoint->GetVelocity(0);
     }
 
     // cartesian
@@ -130,6 +148,10 @@ namespace gazebo
   {
     //m_cartesianReadTopicPub.publish(m_cartesianPoseCurrent);
     m_jointsReadTopicPub.publish(m_jointsCurrent);
+
+    for (size_t jointIdx = 0; jointIdx < m_joints.size(); jointIdx++) {
+      m_singleJointReadTopicSub[jointIdx].publish(m_singleJointCurrent[jointIdx]);
+    }
   }
 /*------------------------------------------------------------------------}}}-*/
 

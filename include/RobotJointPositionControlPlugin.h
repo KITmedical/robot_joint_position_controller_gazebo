@@ -61,6 +61,7 @@ namespace gazebo {
       bool loadParams(sdf::ElementPtr _sdf);
       //void cartesianWriteCallback(const geometry_msgs::Pose::ConstPtr& pose);
       void jointsWriteCallback(const sensor_msgs::JointState::ConstPtr& joints);
+      void singleJointsWriteCallback(const sensor_msgs::JointState::ConstPtr& joints, int jointIndex);
       void updateRobotState();
       void publishRobotState();
   
@@ -89,6 +90,9 @@ namespace gazebo {
       //geometry_msgs::Pose m_cartesianPoseCurrent;
       sensor_msgs::JointState m_jointsCurrent;
   
+      std::vector<ros::Subscriber> m_singleJointWriteTopicSub;
+      std::vector<ros::Publisher> m_singleJointReadTopicSub;
+      std::vector<sensor_msgs::JointState> m_singleJointCurrent;
   
   };
 }

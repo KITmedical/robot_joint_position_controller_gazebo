@@ -7,6 +7,7 @@ project(robot_joint_position_controller_gazebo)
 find_package(catkin REQUIRED COMPONENTS
   gazebo_ros
   roscpp
+  ahbstring
 )
 
 ## System dependencies are found with CMake's conventions
