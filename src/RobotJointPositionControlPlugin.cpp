@@ -41,26 +41,48 @@ namespace gazebo
 
     std::string pluginName = _sdf->GetAttribute("name")->GetAsString();
 
+    m_DOFs = 0;
     physics::Joint_V joints = m_model->GetJoints();
-    std::cout << pluginName << " joints:" << std::endl;
-    for (size_t jointIdx = 0; jointIdx < joints.size(); jointIdx++) {
-      physics::JointPtr currJoint = joints[jointIdx];
-      std::cout << jointIdx << " name=" << currJoint->GetName() << " angle=" << currJoint->GetAngle(0) << " v=" << currJoint->GetVelocity(0) << std::endl;
+    std::cout << pluginName << " joints (size=" << joints.size() << "):" << std::endl;
+    for (size_t modelJointIdx = 0; modelJointIdx < joints.size(); modelJointIdx++) {
+      physics::JointPtr currJoint = joints[modelJointIdx];
 
-      m_joints.push_back(currJoint);
+      bool fixedJoint = true;
+      for (unsigned jointDOFIdx = 0; jointDOFIdx < currJoint->GetAngleCount(); jointDOFIdx++) {
+        if (currJoint->GetLowerLimit(jointDOFIdx) != currJoint->GetUpperLimit(jointDOFIdx)) {
+          fixedJoint = false;
+          break;
+        }
+      }
+
+      if (fixedJoint) {
+        std::cout << modelJointIdx << " name=" << currJoint->GetName() << " is fixed joint" << std::endl;
+        continue;
+      }
+
+      size_t jointIdx = m_moveableJoints.size();
+      m_DOFs += currJoint->GetAngleCount();
+      m_moveableJoints.push_back(currJoint);
       std::string jointTopicName = currJoint->GetName();
       ahb::string::replace(jointTopicName, "::", "_");
+
+      std::cout << modelJointIdx << " name=" << currJoint->GetName()
+                << " DOF=" << currJoint->GetAngleCount()
+                << " jointIndex=" << jointIdx
+                << " jointTopicName=" << jointTopicName
+                << std::endl;
+
       m_singleJointWriteTopicSub.push_back(m_node->subscribe<sensor_msgs::JointState>(m_robotNamespaceName + "/set_" + jointTopicName, 1, boost::bind(&RobotJointPositionControlPlugin::singleJointsWriteCallback, this, _1, jointIdx)));
       m_singleJointReadTopicSub.push_back(m_node->advertise<sensor_msgs::JointState>(m_robotNamespaceName + "/get_" + jointTopicName, 1));
       m_singleJointCurrent.push_back(sensor_msgs::JointState());
-      m_singleJointCurrent[jointIdx].position.resize(1, 0);
-      m_singleJointCurrent[jointIdx].velocity.resize(1, 0);
-      m_singleJointCurrent[jointIdx].effort.resize(1, 0);
+      m_singleJointCurrent[jointIdx].position.resize(currJoint->GetAngleCount(), 0);
+      m_singleJointCurrent[jointIdx].velocity.resize(currJoint->GetAngleCount(), 0);
+      m_singleJointCurrent[jointIdx].effort.resize(currJoint->GetAngleCount(), 0);
     }
 
-    m_jointsCurrent.position.resize(m_joints.size(), 0);
-    m_jointsCurrent.velocity.resize(m_joints.size(), 0);
-    m_jointsCurrent.effort.resize(m_joints.size(), 0);
+    m_jointsCurrent.position.resize(m_DOFs, 0);
+    m_jointsCurrent.velocity.resize(m_DOFs, 0);
+    m_jointsCurrent.effort.resize(m_DOFs, 0);
 
     // Listen to the update event. This event is broadcast every simulation iteration.
     m_updateConnection = event::Events::ConnectWorldUpdateBegin(
@@ -102,8 +124,8 @@ namespace gazebo
     tf::Vector3 tforigin = tfpose.getOrigin();
     tf::Quaternion tforientation = tfpose.getRotation();
 
-    for (size_t jointIdx = 0; jointIdx < m_joints.size(); jointIdx++) {
-      m_joints[jointIdx]->SetAngle(0, joints.j[jointIdx]);
+    for (size_t dofIdx = 0; dofIdx < m_DOFs; dofIdx++) {
+      m_moveableJoints[dofIdx]->SetAngle(0, joints.j[dofIdx]);
     }
   }
   */
@@ -116,8 +138,15 @@ namespace gazebo
       ROS_WARN("Wrong number of joints received. Ignoring message.");
       return;
     }
-    for (size_t jointIdx = 0; jointIdx < m_joints.size(); jointIdx++) {
-      m_joints[jointIdx]->SetAngle(0, jointsMsg->position[jointIdx]);
+    unsigned jointIdx = 0;
+    unsigned jointDOFIdx = 0;
+    for (size_t dofIdx = 0; dofIdx < m_DOFs; dofIdx++) {
+      if (jointDOFIdx == m_moveableJoints[jointIdx]->GetAngleCount()) {
+        jointIdx++;
+        jointDOFIdx = 0;
+      }
+      m_moveableJoints[jointIdx]->SetAngle(jointDOFIdx, jointsMsg->position[dofIdx]);
+      jointDOFIdx++;
     }
   }
 
@@ -125,19 +154,35 @@ namespace gazebo
   RobotJointPositionControlPlugin::singleJointsWriteCallback(const sensor_msgs::JointState::ConstPtr& jointsMsg, int jointIndex)
   {
     //std::cout << "singleJointsWriteCallback: jointIndex=" << jointIndex << " jointsMsg=" << *jointsMsg << std::endl;
-    m_joints[jointIndex]->SetAngle(0, jointsMsg->position[0]);
+ 
+    if (jointsMsg->position.size() != m_moveableJoints[jointIndex]->GetAngleCount()) {
+      ROS_WARN("Wrong number of joints received. Ignoring message.");
+      return;
+    }
+
+    for (size_t jointDOFIdx = 0; jointDOFIdx < m_moveableJoints[jointIndex]->GetAngleCount(); jointDOFIdx++) {
+      m_moveableJoints[jointIndex]->SetAngle(jointDOFIdx, jointsMsg->position[jointDOFIdx]);
+    }
   }
 
   void
   RobotJointPositionControlPlugin::updateRobotState()
   {
     // joints
-    for (size_t jointIdx = 0; jointIdx < m_joints.size(); jointIdx++) {
-      physics::JointPtr currJoint = m_joints[jointIdx];
-      m_jointsCurrent.position[jointIdx] = currJoint->GetAngle(0).Radian();
-      m_jointsCurrent.velocity[jointIdx] = currJoint->GetVelocity(0);
-      m_singleJointCurrent[jointIdx].position[0] = currJoint->GetAngle(0).Radian();
-      m_singleJointCurrent[jointIdx].velocity[0] = currJoint->GetVelocity(0);
+    unsigned jointIdx = 0;
+    unsigned jointDOFIdx = 0;
+    for (size_t dofIdx = 0; dofIdx < m_DOFs; dofIdx++) {
+      if (jointDOFIdx == m_moveableJoints[jointIdx]->GetAngleCount()) {
+        jointIdx++;
+        jointDOFIdx = 0;
+      }
+      //std::cout << jointIdx << ":" << jointDOFIdx << std::endl;
+      physics::JointPtr currJoint = m_moveableJoints[jointIdx];
+      m_jointsCurrent.position[dofIdx] = currJoint->GetAngle(jointDOFIdx).Radian();
+      m_jointsCurrent.velocity[dofIdx] = currJoint->GetVelocity(jointDOFIdx);
+      m_singleJointCurrent[jointIdx].position[jointDOFIdx] = currJoint->GetAngle(jointDOFIdx).Radian();
+      m_singleJointCurrent[jointIdx].velocity[jointDOFIdx] = currJoint->GetVelocity(jointDOFIdx);
+      jointDOFIdx++;
     }
 
     // cartesian
@@ -149,7 +194,7 @@ namespace gazebo
     //m_cartesianReadTopicPub.publish(m_cartesianPoseCurrent);
     m_jointsReadTopicPub.publish(m_jointsCurrent);
 
-    for (size_t jointIdx = 0; jointIdx < m_joints.size(); jointIdx++) {
+    for (size_t jointIdx = 0; jointIdx < m_singleJointCurrent.size(); jointIdx++) {
       m_singleJointReadTopicSub[jointIdx].publish(m_singleJointCurrent[jointIdx]);
     }
   }

@@ -69,7 +69,8 @@ namespace gazebo {
       // gazebo
       physics::ModelPtr m_model;
       event::ConnectionPtr m_updateConnection;
-      physics::Joint_V m_joints;
+      physics::Joint_V m_moveableJoints;
+      unsigned m_DOFs;
 
       // ros
       ros::NodeHandle* m_node;
