@@ -2,7 +2,7 @@
 <package>
   <name>robot_joint_position_controller_gazebo</name>
   <version>0.0.0</version>
-  <description>The robot_joint_position_controller_gazebo package</description>
+  <description>Generic Gazebo ModelPlugin that allows to control all model joints through sensor_msgs/JointState topics. One topic for all joints and one topic per joint</description>
   <maintainer email="andreas.bihlmaier@gmx.de">Andreas Bihlmaier</maintainer>
   <license>MIT</license>
 
