@@ -88,6 +88,7 @@ namespace gazebo {
       */
       std::string m_jointsReadTopicName;
       std::string m_jointsWriteTopicName;
+      std::string m_modelPrefix;
       //geometry_msgs::Pose m_cartesianPoseCurrent;
       sensor_msgs::JointState m_jointsCurrent;
   

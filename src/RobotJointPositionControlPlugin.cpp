@@ -47,6 +47,11 @@ namespace gazebo
     for (size_t modelJointIdx = 0; modelJointIdx < joints.size(); modelJointIdx++) {
       physics::JointPtr currJoint = joints[modelJointIdx];
 
+      if (!m_modelPrefix.empty() && !ahb::string::startswith(currJoint->GetName(), m_modelPrefix)) {
+        std::cout << modelJointIdx << " name=" << currJoint->GetName() << " not part of model (modelPrefix=" << m_modelPrefix << ")" << std::endl;
+        continue;
+      }
+
       bool fixedJoint = true;
       for (unsigned jointDOFIdx = 0; jointDOFIdx < currJoint->GetAngleCount(); jointDOFIdx++) {
         if (currJoint->GetLowerLimit(jointDOFIdx) != currJoint->GetUpperLimit(jointDOFIdx)) {
@@ -110,6 +115,9 @@ namespace gazebo
     */
     m_jointsReadTopicName = m_robotNamespaceName + "/" + _sdf->GetElement("jointsReadTopic")->Get<std::string>();
     m_jointsWriteTopicName = m_robotNamespaceName + "/" + _sdf->GetElement("jointsWriteTopic")->Get<std::string>();
+    if (_sdf->HasElement("modelPrefixOnly")) {
+      m_modelPrefix = _sdf->GetElement("modelPrefixOnly")->Get<std::string>();
+    }
 
     return true;
   }
