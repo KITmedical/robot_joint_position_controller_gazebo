@@ -133,7 +133,7 @@ namespace gazebo
     tf::Quaternion tforientation = tfpose.getRotation();
 
     for (size_t dofIdx = 0; dofIdx < m_DOFs; dofIdx++) {
-      m_moveableJoints[dofIdx]->SetAngle(0, joints.j[dofIdx]);
+      m_moveableJoints[dofIdx]->SetPosition(0, joints.j[dofIdx]);
     }
   }
   */
@@ -146,15 +146,37 @@ namespace gazebo
       ROS_WARN("Wrong number of joints received. Ignoring message.");
       return;
     }
-    unsigned jointIdx = 0;
-    unsigned jointDOFIdx = 0;
-    for (size_t dofIdx = 0; dofIdx < m_DOFs; dofIdx++) {
-      if (jointDOFIdx == m_moveableJoints[jointIdx]->GetAngleCount()) {
-        jointIdx++;
-        jointDOFIdx = 0;
+
+    {
+      unsigned jointIdx = 0;
+      unsigned jointDOFIdx = 0;
+      for (size_t dofIdx = 0; dofIdx < m_DOFs; dofIdx++) {
+        if (jointDOFIdx == m_moveableJoints[jointIdx]->GetAngleCount()) {
+          jointIdx++;
+          jointDOFIdx = 0;
+        }
+        if (jointsMsg->position[jointDOFIdx] < m_moveableJoints[jointIdx]->GetLowerLimit(jointDOFIdx).Radian()) {
+          ROS_FATAL_STREAM("Joint" << jointIdx << " below joint limit (" << m_moveableJoints[jointIdx]->GetLowerLimit(jointDOFIdx).Radian() << "): " << jointsMsg->position[jointDOFIdx] << ". Will not move robot at all.\n");
+          return;
+        } else if (jointsMsg->position[jointDOFIdx] > m_moveableJoints[jointIdx]->GetUpperLimit(jointDOFIdx).Radian()) {
+          ROS_FATAL_STREAM("Joint" << jointIdx << " above joint limit (" << m_moveableJoints[jointIdx]->GetUpperLimit(jointDOFIdx).Radian() << "): " << jointsMsg->position[jointDOFIdx] << ". Will not move robot at all.\n");
+          return;
+        }
+        jointDOFIdx++;
       }
-      m_moveableJoints[jointIdx]->SetAngle(jointDOFIdx, jointsMsg->position[dofIdx]);
-      jointDOFIdx++;
+    }
+
+    {
+      unsigned jointIdx = 0;
+      unsigned jointDOFIdx = 0;
+      for (size_t dofIdx = 0; dofIdx < m_DOFs; dofIdx++) {
+        if (jointDOFIdx == m_moveableJoints[jointIdx]->GetAngleCount()) {
+          jointIdx++;
+          jointDOFIdx = 0;
+        }
+        m_moveableJoints[jointIdx]->SetPosition(jointDOFIdx, jointsMsg->position[dofIdx]);
+        jointDOFIdx++;
+      }
     }
   }
 
@@ -169,7 +191,17 @@ namespace gazebo
     }
 
     for (size_t jointDOFIdx = 0; jointDOFIdx < m_moveableJoints[jointIndex]->GetAngleCount(); jointDOFIdx++) {
-      m_moveableJoints[jointIndex]->SetAngle(jointDOFIdx, jointsMsg->position[jointDOFIdx]);
+      if (jointsMsg->position[jointDOFIdx] < m_moveableJoints[jointIndex]->GetLowerLimit(jointDOFIdx).Radian()) {
+        ROS_FATAL_STREAM("Joint" << jointIndex << " below joint limit (" << m_moveableJoints[jointIndex]->GetLowerLimit(jointDOFIdx).Radian() << "): " << jointsMsg->position[jointDOFIdx] << ". Will not move robot at all.\n");
+        return;
+      } else if (jointsMsg->position[jointDOFIdx] > m_moveableJoints[jointIndex]->GetUpperLimit(jointDOFIdx).Radian()) {
+        ROS_FATAL_STREAM("Joint" << jointIndex << " above joint limit (" << m_moveableJoints[jointIndex]->GetUpperLimit(jointDOFIdx).Radian() << "): " << jointsMsg->position[jointDOFIdx] << ". Will not move robot at all.\n");
+        return;
+      }
+    }
+
+    for (size_t jointDOFIdx = 0; jointDOFIdx < m_moveableJoints[jointIndex]->GetAngleCount(); jointDOFIdx++) {
+      m_moveableJoints[jointIndex]->SetPosition(jointDOFIdx, jointsMsg->position[jointDOFIdx]);
     }
   }
 
