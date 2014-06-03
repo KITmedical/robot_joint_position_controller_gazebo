@@ -133,7 +133,7 @@ namespace gazebo
     tf::Quaternion tforientation = tfpose.getRotation();
 
     for (size_t dofIdx = 0; dofIdx < m_DOFs; dofIdx++) {
-      m_moveableJoints[dofIdx]->SetPosition(0, joints.j[dofIdx]);
+      m_moveableJoints[dofIdx]->SetAngle(0, joints.j[dofIdx]);
     }
   }
   */
@@ -174,7 +174,7 @@ namespace gazebo
           jointIdx++;
           jointDOFIdx = 0;
         }
-        m_moveableJoints[jointIdx]->SetPosition(jointDOFIdx, jointsMsg->position[dofIdx]);
+        m_moveableJoints[jointIdx]->SetAngle(jointDOFIdx, jointsMsg->position[dofIdx]);
         jointDOFIdx++;
       }
     }
@@ -201,7 +201,7 @@ namespace gazebo
     }
 
     for (size_t jointDOFIdx = 0; jointDOFIdx < m_moveableJoints[jointIndex]->GetAngleCount(); jointDOFIdx++) {
-      m_moveableJoints[jointIndex]->SetPosition(jointDOFIdx, jointsMsg->position[jointDOFIdx]);
+      m_moveableJoints[jointIndex]->SetAngle(jointDOFIdx, jointsMsg->position[jointDOFIdx]);
     }
   }
 
