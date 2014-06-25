@@ -73,7 +73,15 @@ namespace gazebo
 
       std::cout << modelJointIdx << " name=" << currJoint->GetName()
                 << " DOF=" << currJoint->GetAngleCount()
-                << " jointIndex=" << jointIdx
+                << " limits=(";
+      for (size_t jointDOFIdx = 0; jointDOFIdx < currJoint->GetAngleCount(); jointDOFIdx++) {
+        std::cout << currJoint->GetLowerLimit(jointDOFIdx).Radian() << " ";
+      }
+      std::cout << ") - (";
+      for (size_t jointDOFIdx = 0; jointDOFIdx < currJoint->GetAngleCount(); jointDOFIdx++) {
+        std::cout << currJoint->GetUpperLimit(jointDOFIdx).Radian() << " ";
+      }
+      std::cout << ") jointIndex=" << jointIdx
                 << " jointTopicName=" << jointTopicName
                 << std::endl;
 
@@ -155,11 +163,12 @@ namespace gazebo
           jointIdx++;
           jointDOFIdx = 0;
         }
-        if (jointsMsg->position[jointDOFIdx] < m_moveableJoints[jointIdx]->GetLowerLimit(jointDOFIdx).Radian()) {
-          ROS_FATAL_STREAM("Joint" << jointIdx << " below joint limit (" << m_moveableJoints[jointIdx]->GetLowerLimit(jointDOFIdx).Radian() << "): " << jointsMsg->position[jointDOFIdx] << ". Will not move robot at all.\n");
+        //printf("%d %d: %lf -> %lf %lf\n", jointIdx, jointDOFIdx, jointsMsg->position[dofIdx], m_moveableJoints[jointIdx]->GetLowerLimit(jointDOFIdx).Radian(), m_moveableJoints[jointIdx]->GetUpperLimit(jointDOFIdx).Radian());
+        if (jointsMsg->position[dofIdx] < m_moveableJoints[jointIdx]->GetLowerLimit(jointDOFIdx).Radian()) {
+          ROS_FATAL_STREAM("Joint" << jointIdx << " below joint limit (" << m_moveableJoints[jointIdx]->GetLowerLimit(jointDOFIdx).Radian() << "): " << jointsMsg->position[dofIdx] << ". Will not move robot at all.\n");
           return;
-        } else if (jointsMsg->position[jointDOFIdx] > m_moveableJoints[jointIdx]->GetUpperLimit(jointDOFIdx).Radian()) {
-          ROS_FATAL_STREAM("Joint" << jointIdx << " above joint limit (" << m_moveableJoints[jointIdx]->GetUpperLimit(jointDOFIdx).Radian() << "): " << jointsMsg->position[jointDOFIdx] << ". Will not move robot at all.\n");
+        } else if (jointsMsg->position[dofIdx] > m_moveableJoints[jointIdx]->GetUpperLimit(jointDOFIdx).Radian()) {
+          ROS_FATAL_STREAM("Joint" << jointIdx << " above joint limit (" << m_moveableJoints[jointIdx]->GetUpperLimit(jointDOFIdx).Radian() << "): " << jointsMsg->position[dofIdx] << ". Will not move robot at all.\n");
           return;
         }
         jointDOFIdx++;
