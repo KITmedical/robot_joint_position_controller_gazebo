@@ -5,6 +5,7 @@
 
 // library includes
 #include <boost/bind.hpp>
+#include <boost/algorithm/string.hpp>
 
 // custom includes
 #include <ahbstring.h>
@@ -47,9 +48,21 @@ namespace gazebo
     for (size_t modelJointIdx = 0; modelJointIdx < joints.size(); modelJointIdx++) {
       physics::JointPtr currJoint = joints[modelJointIdx];
 
-      if (!m_modelPrefix.empty() && !ahb::string::startswith(currJoint->GetName(), m_modelPrefix)) {
-        std::cout << modelJointIdx << " name=" << currJoint->GetName() << " not part of model (modelPrefix=" << m_modelPrefix << ")" << std::endl;
-        continue;
+      if (!m_modelPrefix.empty()) {
+        std::vector<std::string> prefixes;
+        boost::split(prefixes, m_modelPrefix, boost::is_any_of("\n\t "));
+        bool matches_any_prefix = false;
+        for (std::vector<std::string>::const_iterator prefixIter = prefixes.begin(); prefixIter != prefixes.end(); ++prefixIter) {
+          if (ahb::string::startswith(currJoint->GetName(), *prefixIter)) {
+            matches_any_prefix = true;
+            break;
+          }
+        }
+
+        if (!matches_any_prefix) {
+          std::cout << modelJointIdx << " name=" << currJoint->GetName() << " not part of model (modelPrefix=" << m_modelPrefix << ")" << std::endl;
+          continue;
+        }
       }
 
       bool fixedJoint = true;
