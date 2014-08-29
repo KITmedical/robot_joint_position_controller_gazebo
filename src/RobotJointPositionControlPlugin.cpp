@@ -120,6 +120,7 @@ namespace gazebo
       }
       physics::JointPtr currJoint = m_moveableJoints[jointIdx];
       m_jointsCurrent.name[dofIdx] = currJoint->GetName() + ahb::string::toString(jointDOFIdx);
+      jointDOFIdx++;
     }
 
     // Listen to the update event. This event is broadcast every simulation iteration.
