@@ -106,9 +106,21 @@ namespace gazebo
       m_singleJointCurrent[jointIdx].effort.resize(currJoint->GetAngleCount(), 0);
     }
 
+    m_jointsCurrent.name.resize(m_DOFs, "");
     m_jointsCurrent.position.resize(m_DOFs, 0);
     m_jointsCurrent.velocity.resize(m_DOFs, 0);
     m_jointsCurrent.effort.resize(m_DOFs, 0);
+
+    unsigned jointIdx = 0;
+    unsigned jointDOFIdx = 0;
+    for (size_t dofIdx = 0; dofIdx < m_DOFs; dofIdx++) {
+      if (jointDOFIdx == m_moveableJoints[jointIdx]->GetAngleCount()) {
+        jointIdx++;
+        jointDOFIdx = 0;
+      }
+      physics::JointPtr currJoint = m_moveableJoints[jointIdx];
+      m_jointsCurrent.name[dofIdx] = currJoint->GetName() + ahb::string::toString(jointDOFIdx);
+    }
 
     // Listen to the update event. This event is broadcast every simulation iteration.
     m_updateConnection = event::Events::ConnectWorldUpdateBegin(
