@@ -119,11 +119,8 @@ namespace gazebo
         jointDOFIdx = 0;
       }
       physics::JointPtr currJoint = m_moveableJoints[jointIdx];
-      m_jointsCurrent.name[dofIdx] = currJoint->GetName();
+      m_jointsCurrent.name[dofIdx] = currJoint->GetName() + "_dof" + ahb::string::toString(jointDOFIdx);
       ahb::string::replace(m_jointsCurrent.name[dofIdx], "::", "__");
-      if (jointDOFIdx > 1) {
-        m_jointsCurrent.name[dofIdx] += ahb::string::toString(jointDOFIdx);
-      }
       jointDOFIdx++;
     }
 
